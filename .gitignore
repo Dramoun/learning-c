@@ -1,0 +1,51 @@
+# =========================
+# Build output
+# =========================
+build/
+*.o
+*.obj
+*.so
+*.a
+*.dll
+*.exe
+
+# =========================
+# CMake temporary files
+# =========================
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+compile_commands.json
+CTestTestfile.cmake
+Testing/
+
+# =========================
+# Editor/IDE files
+# =========================
+# Vim
+*.swp
+*.swo
+*.swn
+*.vimbackup
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# Other editors
+*.sublime-workspace
+*.sublime-project
+*.idea/
+*.iml
+
+# =========================
+# SDL vendored build artifacts
+# =========================
+lib/SDL/build/
+
+# =========================
+# Logs and temporary files
+# =========================
+*.log
+*.tmp
