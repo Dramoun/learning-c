@@ -1,21 +1,23 @@
-//hello.c
+// hello.c
 
 // For time usage funcs on linux
+#include <math.h>
 #define _POSIX_C_SOURCE 199309L
+#define MAX_BULLETS 100
 #include <time.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 
 // For terminal usage funcs
-#include <termios.h>
 #include <fcntl.h>
-#include <unistd.h>
 #include <signal.h>
+#include <termios.h>
+#include <unistd.h>
 
 static struct termios original;
 
-struct Map { 
+struct Map {
   int maxX;
   int maxY;
   int minX;
@@ -24,11 +26,26 @@ struct Map {
 
 struct Unit {
   char symbol;
-  float x; // Col
-  float y; // Row
+  float x;  // Col
+  float y;  // Row
   float vx; // Col velocity
   float vy; // Row velocity
   int hp;
+};
+
+struct Bullet {
+  char symbol;
+  float x;
+  float y;
+  float vx;
+  float vy;
+  int alive;
+};
+
+struct Bullets {
+  struct Bullet *units;
+  int aliveCount;
+  int deadCount;
 };
 
 // Exponentially chunked
@@ -42,12 +59,14 @@ struct Game {
   struct Map *map;
   struct Unit *player;
   struct Enemies *enemies;
+  struct Bullets *bullets;
   float secondsPerFrame;
   int currentLevel;
   int isRunning;
 };
 
-// -- For save usage of terminal with better button presses then event blocking input
+// -- For save usage of terminal with better button presses then event blocking
+// input
 void enableRawMode();
 void disableRawMode();
 void handleSigint();
@@ -56,34 +75,34 @@ int keyPressed();
 // --
 //
 // Sleep func - check this out later
-void sleepMs(
-    long ms
-);
+void sleepMs(long ms);
 
 struct Map *createMap(int minX, int minY, int maxX, int maxY);
 struct Unit *createPlayer(char symbol, float x, float y, int hp);
 struct Enemies *createEnemies(int initialCapacity);
 struct Game *createGame();
+struct Bullets *createBulletSpace();
 void destroyGame(struct Game *game);
 
 void updateUnitsPositions(struct Game *game);
-int unitInBounds(struct Game *game, struct Unit *unit);
 void renderMap(struct Game *game);
 
 void addEnemy(struct Enemies *enemies, struct Unit enemy);
 void removeEnemy(struct Enemies *enemies, int enemyIndex);
 
-int checkCollision(int cx, int cy, int tx, int ty);
+void addBullet(struct Game *game, int x, int y, int vx, int vy);
 
-int main(){
+void clampObjectsToBorders(struct Game *game);
+int clampUnit(struct Game *game, struct Unit *unit);
+
+int main() {
   struct Game *game = createGame();
 
-  if (!game){
+  if (!game) {
     printf("Failed to initialize game\n");
     return 1;
   }
 
-  // Appearing, wanna reprint here?
   addEnemy(game->enemies, (struct Unit){'X', 1, 2, 0, 0, 2});
   addEnemy(game->enemies, (struct Unit){'X', 3, 2, 0, 0, 2});
   addEnemy(game->enemies, (struct Unit){'X', 5, 2, 0, 0, 2});
@@ -96,34 +115,37 @@ int main(){
   atexit(disableRawMode);
   enableRawMode();
 
-  while(game->isRunning){
+  while (game->isRunning) {
     printf("\033[H\033[J"); // clear screen
+    char userInput = readKey();
 
-    char userInput = readKey();  
-
-    if (userInput == 'q'){
+    if (userInput == 'q') {
       game->isRunning = 0;
       continue;
-    } else if (userInput == 'a'){ //left 
-      game->player->vx = -5.0f;
-    } else if (userInput == 'd'){ //right
-      game->player->vx = 5.0f;
-    } else if (userInput == 'w'){ //up
-      game->player->vy = -5.0f;
-    } else if (userInput == 's'){ //down
-      game->player->vy = 5.0f;
+    } else if (userInput == 'a') { // left
+      game->player->vx = -16.0f;
+    } else if (userInput == 'd') { // right
+      game->player->vx = 16.0f;
+    } else if (userInput == 'w') { // up
+      game->player->vy = -16.0f;
+    } else if (userInput == 's') { // down
+      game->player->vy = 16.0f;
+    } else if (userInput == ' ') {
+      addBullet(game, game->player->x, game->player->y, 0.0f, 20.0f)
     } else {
       game->player->vx = 0.0f;
       game->player->vy = 0.0f;
     }
 
-    //TODO: colision checks missing
+    //TODO: create colition checks for bullets inlcuding out of bounds check to un alive
     updateUnitsPositions(game);
+    clampObjectsToBorders(game);
     renderMap(game);
-
+    
+    // TODO: up current bullet limit counter
     sleepMs(game->secondsPerFrame * 1000);
   }
-  
+
   destroyGame(game);
   disableRawMode();
 
@@ -133,51 +155,76 @@ int main(){
 void renderMap(struct Game *game) {
   printf("---- New Map ----\n");
 
-  for (int y = game->map->minY; y < game->map->maxY; y++) {
-    for (int x = game->map->minX; x < game->map->maxX; x++) {
+  int mapSizeX = game->map->maxX - game->map->minX;
+  int mapSizeY = game->map->maxY - game->map->minY;
+  char mapBuffer[mapSizeY][mapSizeX];
 
-      int enemyAdded = 0;
-      for (int i = 0; i < game->enemies->unitCount; i++) {
-        struct Unit *enemy = &game->enemies->units[i];
+  for (int y = 0; y < mapSizeY; y++) {
+    for (int x = 0; x < mapSizeX; x++) {
+      mapBuffer[y][x] = '-';
+    }
+  }
 
-        if (enemy->y == y && enemy->x == x) {
-          printf(" %c", enemy->symbol);
-          enemyAdded = 1;
-          break;
-        }
-      }
+  for (int e = 0; e < game->enemies->unitCount; e++) {
+    struct Unit *enemy = &game->enemies->units[e];
+    int arrayX = (int)enemy->x - game->map->minX;
+    int arrayY = (int)enemy->y - game->map->minY;
+    mapBuffer[arrayY][arrayX] = enemy->symbol;
+  }
+  
+  int playerArrayX = (int)game->player->x - game->map->minX;
+  int playerArrayY = (int)game->player->y - game->map->minY;
+  mapBuffer[playerArrayY][playerArrayX] = game->player->symbol;
 
-      if (!enemyAdded && game->player->y == y && game->player->x == x) {
-        printf(" %c", game->player->symbol);
-      } else if (!enemyAdded) {
-        printf(" -");
-      }
-    };
+  for (int y = 0; y < mapSizeY; y++) {
+    for (int x = 0; x < mapSizeX; x++) {
+      printf(" %c", mapBuffer[y][x]);
+    }
     printf("\n");
-  };
+  }
 };
 
 void updateUnitsPositions(struct Game *game) {
   for (int i = 0; i < game->enemies->unitCount; i++) {
-    if (unitInBounds(game, &game->enemies->units[i])){
-      game->enemies->units[i].x += game->enemies->units[i].vx * game->secondsPerFrame;
-      game->enemies->units[i].y += game->enemies->units[i].vy * game->secondsPerFrame;
-    }
+    game->enemies->units[i].x +=
+        game->enemies->units[i].vx * game->secondsPerFrame;
+    game->enemies->units[i].y +=
+        game->enemies->units[i].vy * game->secondsPerFrame;
   }
-  
-  if (unitInBounds(game, game->player)){
-    game->player->x += game->player->vx * game->secondsPerFrame;
-    game->player->y += game->player->vy * game->secondsPerFrame;
-  }
+
+  game->player->x += game->player->vx * game->secondsPerFrame;
+  game->player->y += game->player->vy * game->secondsPerFrame;
 }
 
-int unitInBounds(struct Game *game, struct Unit *unit){
-  if (unit->y < game->map->minY || unit->y >= game->map->maxY ||
-      unit->x < game->map->minX || unit->x >= game->map->maxX) {
-    return 0;
-  };
+void clampObjectsToBorders(struct Game *game) {
+  for (int e = 0; e < game->enemies->unitCount; e++) {
+    struct Unit *enemy = &game->enemies->units[e];
+    clampUnit(game, enemy);
+  }
 
-  return 1;
+  clampUnit(game, game->player);
+}
+
+int clampUnit(struct Game *game, struct Unit *unit) {
+  int clamped = 0;
+
+  if (unit->x < game->map->minX){
+    unit->x = game->map->minX;
+    clamped = 1;
+  }
+  if (unit->x >= game->map->maxX){
+    unit->x = game->map->maxX - 1;
+    clamped = 1;
+  }
+  if (unit->y < game->map->minY){
+    unit->y = game->map->minY;
+    clamped = 1;
+  }
+  if (unit->y >= game->map->maxY){
+    unit->y = game->map->maxY - 1;
+    clamped = 1;
+  }
+  return clamped;
 }
 
 void addEnemy(struct Enemies *enemies, struct Unit enemy) {
@@ -214,14 +261,6 @@ void removeEnemy(struct Enemies *enemies, int enemyIndex) {
   enemies->unitCount--;
 };
 
-int checkCollision(int cx, int cy, int tx, int ty) {
-  if (cx == tx && cy == ty) {
-    return 1;
-  }
-
-  return 0;
-};
-
 struct Map *createMap(int minX, int minY, int maxX, int maxY) {
   struct Map *map = malloc(sizeof(struct Map));
 
@@ -254,6 +293,33 @@ struct Unit *createPlayer(char symbol, float x, float y, int hp) {
   return player;
 }
 
+void addBullet(struct Game *game, int x, int y, int vx, int vy) {
+  if (game->bullets->aliveCount == MAX_BULLETS){
+    return;
+  }
+  
+  for (int i = 0; i < MAX_BULLETS; i++){
+    int added = 0;
+    
+    struct Bullet *bullet = &game->bullets->units[i];
+
+    if (bullet->alive == 0){
+      bullet->alive = 1;
+      bullet->x = x;
+      bullet->y = y;
+      bullet->vx = vx;
+      bullet->vy = vy;
+      added = 1;
+    }
+
+    if (added){
+      game->bullets->aliveCount++;
+      return;
+    }
+  }
+
+}
+
 struct Enemies *createEnemies(int initialCapacity) {
   struct Enemies *enemies = malloc(sizeof(struct Enemies));
 
@@ -274,6 +340,32 @@ struct Enemies *createEnemies(int initialCapacity) {
   return enemies;
 }
 
+struct Bullets *createBulletSpace(){
+  struct Bullets *bullets = malloc(sizeof(struct Bullets));
+
+  if (!bullets){
+    return NULL;
+  }
+
+  struct Bullet *bulletSpace = malloc(sizeof(struct Bullet) * MAX_BULLETS); 
+
+  if (!bulletSpace){
+    free(bullets);
+    return NULL;
+  }
+  
+  for (int i = 0; i < MAX_BULLETS; i++){
+    bulletSpace[i].alive = 0;
+    bulletSpace[i].symbol = '|';
+  }
+
+  bullets->units = bulletSpace;
+  bullets->aliveCount = 0;
+  bullets->deadCount = 0;
+
+  return bullets;
+}
+
 struct Game *createGame() {
   struct Game *game = malloc(sizeof(struct Game));
 
@@ -284,14 +376,20 @@ struct Game *createGame() {
   game->map = createMap(0, 0, 10, 10);
   game->player = createPlayer('P', 4, 9, 10);
   game->enemies = createEnemies(4);
+  game->bullets = createBulletSpace();
 
-  if (!game->map || !game->player || !game->enemies) {
+  if (!game->map || !game->player || !game->enemies || !game->bullets) {
     free(game->map);
     free(game->player);
 
     if (game->enemies) {
       free(game->enemies->units);
       free(game->enemies);
+    }
+
+    if (game->bullets){
+      free(game->bullets->units);
+      free(game->bullets);
     }
 
     free(game);
@@ -316,6 +414,8 @@ void destroyGame(struct Game *game) {
     free(game->enemies->units);
     free(game->enemies);
   }
+
+  free(game->bullets);
 
   free(game);
 }
