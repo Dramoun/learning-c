@@ -92,11 +92,16 @@ void removeEnemy(struct Enemies *enemies, int enemyIndex);
 
 void addBullet(struct Game *game, int x, int y, int vx, int vy);
 
+void checkBuletPositions(struct Game *game);
+void bulletBorderCollision(struct Game *game, struct Bullet *bullet);
+int bulletEnemyCollision(struct Bullet *bullet, struct Unit *enemy);
+
 void clampObjectsToBorders(struct Game *game);
-int clampUnit(struct Game *game, struct Unit *unit);
+void clampUnit(struct Game *game, struct Unit *unit);
 
 int main() {
   struct Game *game = createGame();
+  float bulletLimiter = 0.0f;
 
   if (!game) {
     printf("Failed to initialize game\n");
@@ -123,26 +128,29 @@ int main() {
       game->isRunning = 0;
       continue;
     } else if (userInput == 'a') { // left
-      game->player->vx = -16.0f;
+      game->player->vx = -30.0f;
     } else if (userInput == 'd') { // right
-      game->player->vx = 16.0f;
+      game->player->vx = 30.0f;
     } else if (userInput == 'w') { // up
-      game->player->vy = -16.0f;
+      game->player->vy = -30.0f;
     } else if (userInput == 's') { // down
-      game->player->vy = 16.0f;
-    } else if (userInput == ' ') {
-      addBullet(game, game->player->x, game->player->y, 0.0f, 20.0f)
+      game->player->vy = 30.0f;
+    } else if (userInput == ' ' && bulletLimiter > 30.0f) {
+      bulletLimiter = 0.0f;
+      addBullet(game, game->player->x, game->player->y, 0.0f, -5.0f);
     } else {
       game->player->vx = 0.0f;
       game->player->vy = 0.0f;
     }
 
-    //TODO: create colition checks for bullets inlcuding out of bounds check to un alive
     updateUnitsPositions(game);
+    checkBuletPositions(game);
     clampObjectsToBorders(game);
     renderMap(game);
-    
-    // TODO: up current bullet limit counter
+    printf("%f\n", bulletLimiter);
+    printf("%i\n", game->bullets->aliveCount);
+    // up current bullet limit counter
+    bulletLimiter += game->secondsPerFrame * 100;
     sleepMs(game->secondsPerFrame * 1000);
   }
 
@@ -171,6 +179,16 @@ void renderMap(struct Game *game) {
     int arrayY = (int)enemy->y - game->map->minY;
     mapBuffer[arrayY][arrayX] = enemy->symbol;
   }
+
+  for (int b = 0; b < MAX_BULLETS; b++){
+    struct Bullet *bullet = &game->bullets->units[b];
+
+    if (bullet->alive){
+      int arrayX = (int)bullet->x - game->map->minX;
+      int arrayY = (int)bullet->y - game->map->minY;
+      mapBuffer[arrayY][arrayX] = bullet->symbol;
+    }
+  }
   
   int playerArrayX = (int)game->player->x - game->map->minX;
   int playerArrayY = (int)game->player->y - game->map->minY;
@@ -186,14 +204,86 @@ void renderMap(struct Game *game) {
 
 void updateUnitsPositions(struct Game *game) {
   for (int i = 0; i < game->enemies->unitCount; i++) {
-    game->enemies->units[i].x +=
-        game->enemies->units[i].vx * game->secondsPerFrame;
-    game->enemies->units[i].y +=
-        game->enemies->units[i].vy * game->secondsPerFrame;
+    game->enemies->units[i].x += game->enemies->units[i].vx * game->secondsPerFrame;
+    game->enemies->units[i].y += game->enemies->units[i].vy * game->secondsPerFrame;
+  }
+
+  int bulletsMoved = 0;
+
+  for (int i = 0; i < MAX_BULLETS; i++){
+    if (bulletsMoved == game->bullets->aliveCount){
+      break;
+    }
+    
+    struct Bullet *bullet = &game->bullets->units[i];
+    
+    if (bullet->alive){
+      bullet->x += bullet->vx * game->secondsPerFrame;
+      bullet->y += bullet->vy * game->secondsPerFrame;
+      bulletsMoved++;
+    }
   }
 
   game->player->x += game->player->vx * game->secondsPerFrame;
   game->player->y += game->player->vy * game->secondsPerFrame;
+}
+
+void checkBuletPositions(struct Game *game){
+  // bullet touched border == remove
+  for (int i = 0; i < MAX_BULLETS; i++){
+    struct Bullet *bullet = &game->bullets->units[i];
+
+    if (bullet->alive){
+      bulletBorderCollision(game, bullet);
+    
+      if (bullet->alive){
+        // bullet touched enemy == remove ( bullet and enemy)
+        for (int e = 0; e < game->enemies->unitCount; e++){
+          struct Unit *enemy = &game->enemies->units[e];
+
+          if (bulletEnemyCollision(bullet, enemy)){
+            removeEnemy(game->enemies, e);
+            game->bullets->aliveCount--;
+            break;
+          }
+        }
+      }
+    }
+  }
+  // TODO: check if bullet touched player == remove (end game)
+}
+
+void bulletBorderCollision(struct Game *game, struct Bullet *bullet){
+  int bulletRemoved = 0;
+
+  if (bullet->x < game->map->minX){
+    bullet->alive = 0;
+    bulletRemoved = 1;
+  } else if (bullet->x >= game->map->maxX){
+    bullet->alive = 0;
+    bulletRemoved = 1;
+  } else if (bullet->y < game->map->minY){
+    bullet->alive = 0;
+    bulletRemoved = 1;
+  } else if (bullet->y >= game->map->maxY){
+    bullet->alive = 0;
+    bulletRemoved = 1;
+  }
+
+  if (bulletRemoved){
+    game->bullets->aliveCount--;
+  }
+}
+
+int bulletEnemyCollision(struct Bullet *bullet, struct Unit *enemy){
+  int enemyKilled = 0;
+  
+  if ((int)bullet->x == (int)enemy->x && (int)bullet->y == (int)enemy->y){
+    bullet->alive = 0;
+    enemyKilled = 1;
+  }
+
+  return enemyKilled;
 }
 
 void clampObjectsToBorders(struct Game *game) {
@@ -205,26 +295,19 @@ void clampObjectsToBorders(struct Game *game) {
   clampUnit(game, game->player);
 }
 
-int clampUnit(struct Game *game, struct Unit *unit) {
-  int clamped = 0;
-
+void clampUnit(struct Game *game, struct Unit *unit) {
   if (unit->x < game->map->minX){
     unit->x = game->map->minX;
-    clamped = 1;
   }
   if (unit->x >= game->map->maxX){
     unit->x = game->map->maxX - 1;
-    clamped = 1;
   }
   if (unit->y < game->map->minY){
     unit->y = game->map->minY;
-    clamped = 1;
   }
   if (unit->y >= game->map->maxY){
     unit->y = game->map->maxY - 1;
-    clamped = 1;
   }
-  return clamped;
 }
 
 void addEnemy(struct Enemies *enemies, struct Unit enemy) {
@@ -299,8 +382,6 @@ void addBullet(struct Game *game, int x, int y, int vx, int vy) {
   }
   
   for (int i = 0; i < MAX_BULLETS; i++){
-    int added = 0;
-    
     struct Bullet *bullet = &game->bullets->units[i];
 
     if (bullet->alive == 0){
@@ -309,10 +390,6 @@ void addBullet(struct Game *game, int x, int y, int vx, int vy) {
       bullet->y = y;
       bullet->vx = vx;
       bullet->vy = vy;
-      added = 1;
-    }
-
-    if (added){
       game->bullets->aliveCount++;
       return;
     }
