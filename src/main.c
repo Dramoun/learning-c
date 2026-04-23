@@ -17,6 +17,14 @@
 
 static struct termios original;
 
+enum GameState {
+  MAIN_MENU,
+  PLAYING,
+  PAUSED,
+  GAME_WIN,
+  GAME_LOSE
+};
+
 struct Map {
   int maxX;
   int maxY;
@@ -60,6 +68,7 @@ struct Game {
   struct Unit *player;
   struct Enemies *enemies;
   struct Bullets *bullets;
+  enum GameState gameState;
   float secondsPerFrame;
   int currentLevel;
   int isRunning;
@@ -99,6 +108,12 @@ int bulletEnemyCollision(struct Bullet *bullet, struct Unit *enemy);
 void clampObjectsToBorders(struct Game *game);
 void clampUnit(struct Game *game, struct Unit *unit);
 
+void gameMenu(struct Game *game);
+void gamePlaying(struct Game *game, char userInput);
+void gamePaused(struct Game *game);
+void gameWin(struct Game *game);
+void gameLose(struct Game *game);
+
 int main() {
   struct Game *game = createGame();
   float bulletLimiter = 0.0f;
@@ -124,6 +139,29 @@ int main() {
     printf("\033[H\033[J"); // clear screen
     char userInput = readKey();
 
+    switch (game->gameState){
+      case MAIN_MENU:
+        printf("MAIN MENU\n");
+        break;
+
+      case PLAYING:
+        printf("PLAYING\n");
+        gamePlaying(game, userInput);
+        break;
+
+      case PAUSED:
+        printf("PAUSED\n");
+        break;
+
+      case GAME_WIN:
+        printf("GAME WON\n");
+        break;
+
+      case GAME_LOSE:
+        printf("GAME LOST\n");
+        break;
+    }
+    /*
     if (userInput == 'q') {
       game->isRunning = 0;
       continue;
@@ -152,6 +190,7 @@ int main() {
     // up current bullet limit counter
     bulletLimiter += game->secondsPerFrame * 100;
     sleepMs(game->secondsPerFrame * 1000);
+    */
   }
 
   destroyGame(game);
@@ -159,6 +198,38 @@ int main() {
 
   return 0;
 };
+
+void gamePlaying(struct Game *game, char userInput){
+  float bulletLimiter = 0.0f;
+  
+  if (userInput == 'q') {
+    game->isRunning = 0;
+  } else if (userInput == 'a') { // left
+    game->player->vx = -30.0f;
+  } else if (userInput == 'd') { // right
+    game->player->vx = 30.0f;
+  } else if (userInput == 'w') { // up
+    game->player->vy = -30.0f;
+  } else if (userInput == 's') { // down
+    game->player->vy = 30.0f;
+  } else if (userInput == ' ' && bulletLimiter > 30.0f) {
+    bulletLimiter = 0.0f;
+    addBullet(game, game->player->x, game->player->y, 0.0f, -5.0f);
+  } else {
+    game->player->vx = 0.0f;
+    game->player->vy = 0.0f;
+  }
+
+  updateUnitsPositions(game);
+  checkBuletPositions(game);
+  clampObjectsToBorders(game);
+  renderMap(game);
+  printf("%f\n", bulletLimiter);
+  printf("%i\n", game->bullets->aliveCount);
+  // up current bullet limit counter
+  bulletLimiter += game->secondsPerFrame * 100;
+  sleepMs(game->secondsPerFrame * 1000);
+}
 
 void renderMap(struct Game *game) {
   printf("---- New Map ----\n");
@@ -472,6 +543,8 @@ struct Game *createGame() {
     free(game);
     return NULL;
   }
+
+  game->gameState = MAIN_MENU;
   game->secondsPerFrame = 0.016f;
   game->currentLevel = 0;
   game->isRunning = 1;
@@ -492,7 +565,10 @@ void destroyGame(struct Game *game) {
     free(game->enemies);
   }
 
-  free(game->bullets);
+  if (game->bullets) {
+    free(game->bullets->units);
+    free(game->bullets);
+  }
 
   free(game);
 }
