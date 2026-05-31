@@ -1,22 +1,19 @@
 // hello.c
 
-// For time usage funcs on linux
-#include <math.h>
 #define _POSIX_C_SOURCE 199309L
+#include "utils/terminal_utils.h"
 #define MAX_BULLETS 100
-#include <time.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 
 // For terminal usage funcs
 #include <fcntl.h>
-#include <signal.h>
 #include <termios.h>
 #include <unistd.h>
+#include <time.h>
 
-static struct termios original;
-
+//TODO: added vec2 and body so next we need units separated and using that stuff
 enum GameState {
   MAIN_MENU,
   PLAYING,
@@ -74,18 +71,6 @@ struct Game {
   int isRunning;
 };
 
-// -- For save usage of terminal with better button presses then event blocking
-// input
-void enableRawMode();
-void disableRawMode();
-void handleSigint();
-char readKey();
-int keyPressed();
-// --
-//
-// Sleep func - check this out later
-void sleepMs(long ms);
-
 struct Map *createMap(int minX, int minY, int maxX, int maxY);
 struct Unit *createPlayer(char symbol, float x, float y, int hp);
 struct Enemies *createEnemies(int initialCapacity);
@@ -108,15 +93,30 @@ int bulletEnemyCollision(struct Bullet *bullet, struct Unit *enemy);
 void clampObjectsToBorders(struct Game *game);
 void clampUnit(struct Game *game, struct Unit *unit);
 
-void gameMenu(struct Game *game);
-void gamePlaying(struct Game *game, char userInput);
-void gamePaused(struct Game *game);
-void gameWin(struct Game *game);
-void gameLose(struct Game *game);
+void gameMenu(struct Game *game, KeyState keys[KEY_COUNT]);
+void gamePlaying(struct Game *game, KeyState keys[KEY_COUNT], float *bulletLimiter);
+void gamePaused(struct Game *game, KeyState keys[KEY_COUNT]);
+void gameWin(struct Game *game, KeyState keys[KEY_COUNT]);
+void gameLose(struct Game *game, KeyState keys[KEY_COUNT]);
+
+// TODO: move this
+void sleepMs(long ms) {
+    struct timespec ts;
+
+    ts.tv_sec = ms / 1000;
+    ts.tv_nsec = (ms % 1000) * 1000000L;
+
+    while (nanosleep(&ts, &ts) == -1) {
+        // if interrupted by signal, nanosleep returns remaining time in ts
+        continue;
+    }
+}
 
 int main() {
   struct Game *game = createGame();
   float bulletLimiter = 0.0f;
+  
+  InitKeyPair keyPair = getInitKeys();
 
   if (!game) {
     printf("Failed to initialize game\n");
@@ -131,104 +131,103 @@ int main() {
 
   renderMap(game);
 
-  signal(SIGINT, handleSigint);
-  atexit(disableRawMode);
-  enableRawMode();
+  enableSpecialTerminal();
 
   while (game->isRunning) {
     printf("\033[H\033[J"); // clear screen
-    char userInput = readKey();
+    beginInputFrame(keyPair.keys);
+    updateInput(keyPair.keys, keyPair.lastSeen);
 
     switch (game->gameState){
       case MAIN_MENU:
         printf("MAIN MENU\n");
+        gamePlaying(game, keyPair.keys, &bulletLimiter);
+        //gameMenu(game, keyPair.keys);
         break;
 
       case PLAYING:
         printf("PLAYING\n");
-        gamePlaying(game, userInput);
+        gamePlaying(game, keyPair.keys, &bulletLimiter);
         break;
 
       case PAUSED:
         printf("PAUSED\n");
+        gamePaused(game, keyPair.keys);
         break;
 
       case GAME_WIN:
         printf("GAME WON\n");
+        gameWin(game, keyPair.keys);
         break;
 
       case GAME_LOSE:
         printf("GAME LOST\n");
+        gameLose(game, keyPair.keys);
         break;
     }
-    /*
-    if (userInput == 'q') {
-      game->isRunning = 0;
-      continue;
-    } else if (userInput == 'a') { // left
-      game->player->vx = -30.0f;
-    } else if (userInput == 'd') { // right
-      game->player->vx = 30.0f;
-    } else if (userInput == 'w') { // up
-      game->player->vy = -30.0f;
-    } else if (userInput == 's') { // down
-      game->player->vy = 30.0f;
-    } else if (userInput == ' ' && bulletLimiter > 30.0f) {
-      bulletLimiter = 0.0f;
-      addBullet(game, game->player->x, game->player->y, 0.0f, -5.0f);
-    } else {
-      game->player->vx = 0.0f;
-      game->player->vy = 0.0f;
-    }
-
-    updateUnitsPositions(game);
-    checkBuletPositions(game);
-    clampObjectsToBorders(game);
-    renderMap(game);
-    printf("%f\n", bulletLimiter);
-    printf("%i\n", game->bullets->aliveCount);
-    // up current bullet limit counter
-    bulletLimiter += game->secondsPerFrame * 100;
-    sleepMs(game->secondsPerFrame * 1000);
-    */
   }
 
   destroyGame(game);
-  disableRawMode();
+  disableSpecialTerminal();
 
   return 0;
 };
 
-void gamePlaying(struct Game *game, char userInput){
-  float bulletLimiter = 0.0f;
-  
-  if (userInput == 'q') {
+void gameMenu(struct Game *game, KeyState keys[KEY_COUNT]){
+  if (keys['q'].pressed) {
     game->isRunning = 0;
-  } else if (userInput == 'a') { // left
-    game->player->vx = -30.0f;
-  } else if (userInput == 'd') { // right
-    game->player->vx = 30.0f;
-  } else if (userInput == 'w') { // up
-    game->player->vy = -30.0f;
-  } else if (userInput == 's') { // down
-    game->player->vy = 30.0f;
-  } else if (userInput == ' ' && bulletLimiter > 30.0f) {
-    bulletLimiter = 0.0f;
-    addBullet(game, game->player->x, game->player->y, 0.0f, -5.0f);
-  } else {
-    game->player->vx = 0.0f;
-    game->player->vy = 0.0f;
+  } else if (keys['p'].pressed) { // play
+    game->gameState = PLAYING;
   }
+}
+
+void gamePlaying(struct Game *game, KeyState keys[KEY_COUNT], float *bulletLimiter){
+  if (keys[KEY_Q].pressed) {
+    game->isRunning = 0;
+    return;
+  }
+  
+  game->player->vx = 0.0f;
+  game->player->vy = 0.0f;
+  
+  if (keys[KEY_A].down) { // left
+    game->player->vx = -30.0f;
+  }
+  if (keys[KEY_D].down) { // right
+    game->player->vx = 30.0f;
+  }
+  if (keys[KEY_W].down) { // up
+    game->player->vy = -30.0f;
+  }
+  if (keys[KEY_S].down) { // down
+    game->player->vy = 30.0f;
+  }
+  if (keys[KEY_SPACE].down && *bulletLimiter > 30.0f) {
+    *bulletLimiter = 0.0f;
+    addBullet(game, game->player->x, game->player->y, 0.0f, -5.0f);
+  } 
 
   updateUnitsPositions(game);
   checkBuletPositions(game);
   clampObjectsToBorders(game);
   renderMap(game);
-  printf("%f\n", bulletLimiter);
+  printf("%f\n", *bulletLimiter);
   printf("%i\n", game->bullets->aliveCount);
   // up current bullet limit counter
-  bulletLimiter += game->secondsPerFrame * 100;
+  *bulletLimiter += game->secondsPerFrame * 100;
   sleepMs(game->secondsPerFrame * 1000);
+}
+
+void gamePaused(struct Game *game, KeyState keys[KEY_COUNT]){
+  
+}
+
+void gameWin(struct Game *game, KeyState keys[KEY_COUNT]){
+
+}
+
+void gameLose(struct Game *game, KeyState keys[KEY_COUNT]){
+
 }
 
 void renderMap(struct Game *game) {
@@ -573,39 +572,3 @@ void destroyGame(struct Game *game) {
   free(game);
 }
 
-void enableRawMode() {
-  tcgetattr(STDIN_FILENO, &original);
-
-  struct termios raw = original;
-  raw.c_lflag &= ~(ICANON | ECHO);
-
-  tcsetattr(STDIN_FILENO, TCSANOW, &raw);
-
-  fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
-}
-
-void disableRawMode() { tcsetattr(STDIN_FILENO, TCSANOW, &original); }
-
-int keyPressed() {
-  char ch;
-  return read(STDIN_FILENO, &ch, 1) == 1;
-}
-
-char readKey() {
-  char ch;
-  if (read(STDIN_FILENO, &ch, 1) == 1)
-    return ch;
-  return 0;
-}
-
-void sleepMs(long ms) {
-  struct timespec ts;
-  ts.tv_sec = ms / 1000;
-  ts.tv_nsec = (ms % 1000) * 1000000;
-  nanosleep(&ts, NULL);
-}
-
-void handleSigint() {
-  disableRawMode();
-  exit(0);
-}
