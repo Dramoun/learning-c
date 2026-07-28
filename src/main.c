@@ -174,9 +174,9 @@ int main() {
 };
 
 void gameMenu(struct Game *game, KeyState keys[KEY_COUNT]){
-  if (keys['q'].pressed) {
+  if (keys[KEY_Q].pressed) {
     game->isRunning = 0;
-  } else if (keys['p'].pressed) { // play
+  } else if (key[KEY_P].pressed) { // play
     game->gameState = PLAYING;
   }
 }
@@ -382,10 +382,10 @@ void clampUnit(struct Game *game, struct Unit *unit) {
 
 void addEnemy(struct Enemies *enemies, struct Unit enemy) {
   if (enemies->capacity <= enemies->unitCount) {
-    enemies->capacity = enemies->capacity * 2;
+    int newCapacity = enemies->capacity * 2;
 
     struct Unit *temp =
-        realloc(enemies->units, sizeof(struct Unit) * (enemies->capacity));
+        realloc(enemies->units, sizeof(struct Unit) * newCapacity);
 
     if (!temp) {
       printf("Memory realocation of enemies failed\n");
@@ -393,6 +393,7 @@ void addEnemy(struct Enemies *enemies, struct Unit enemy) {
     }
 
     enemies->units = temp;
+    enemies->capacity = newCapacity;
   };
 
   enemies->units[enemies->unitCount++] = enemy;
