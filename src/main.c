@@ -176,7 +176,7 @@ int main() {
 void gameMenu(struct Game *game, KeyState keys[KEY_COUNT]){
   if (keys[KEY_Q].pressed) {
     game->isRunning = 0;
-  } else if (key[KEY_P].pressed) { // play
+  } else if (keys[KEY_P].pressed) { // play
     game->gameState = PLAYING;
   }
 }
