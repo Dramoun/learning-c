@@ -118,32 +118,49 @@ static void setKeyDown(Key key, KeyState keys[KEY_COUNT], double lastSeen[KEY_CO
   lastSeen[key] = now;
 }
 
-static void handleEscapedSequences(double now, KeyState keys[KEY_COUNT], double lastSeen[KEY_COUNT]) {
+static void handleEscapedSequences(
+  double now,
+  KeyState keys[KEY_COUNT],
+  double lastSeen[KEY_COUNT]
+) {
   char seq[2];
 
+  // No second byte: standalone ESC
   if (read(STDIN_FILENO, &seq[0], 1) != 1) {
+    setKeyDown(KEY_ESC, keys, lastSeen, now);
     return;
   }
-  
+
+  // No third byte: standalone/unknown ESC sequence
   if (read(STDIN_FILENO, &seq[1], 1) != 1) {
+    setKeyDown(KEY_ESC, keys, lastSeen, now);
     return;
   }
 
   if (seq[0] == '[') {
     switch (seq[1]) {
-      case 'A': 
+      case 'A':
         setKeyDown(KEY_UP, keys, lastSeen, now);
         break;
-      case 'B': 
+
+      case 'B':
         setKeyDown(KEY_DOWN, keys, lastSeen, now);
         break;
-      case 'C': 
+
+      case 'C':
         setKeyDown(KEY_RIGHT, keys, lastSeen, now);
         break;
-      case 'D': 
+
+      case 'D':
         setKeyDown(KEY_LEFT, keys, lastSeen, now);
         break;
+
+      default:
+        setKeyDown(KEY_ESC, keys, lastSeen, now);
+        break;
     }
+  } else {
+    setKeyDown(KEY_ESC, keys, lastSeen, now);
   }
 }
 
