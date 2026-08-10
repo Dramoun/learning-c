@@ -36,6 +36,8 @@
 
 #define RELEASE_DELAY 0.45
 
+static volatile sig_atomic_t sigintReceived = 0;
+
 static void enableRawMode();
 static void disableRawMode();
 static void handleSigint(int sig);
@@ -59,8 +61,11 @@ static void enableRawMode() {
 
 static void handleSigint(int sig) {
   (void)sig;
-  disableRawMode();
-  exit(0);
+  sigintReceived = 1;
+}
+
+bool shouldQuit() {
+  return sigintReceived != 0;
 }
 
 static void disableRawMode() {

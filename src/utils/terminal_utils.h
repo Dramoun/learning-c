@@ -36,6 +36,7 @@ typedef struct {
 
 void enableSpecialTerminal();
 void disableSpecialTerminal();
+bool shouldQuit();
 
 double timeNow();
 

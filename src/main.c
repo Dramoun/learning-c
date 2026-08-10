@@ -101,15 +101,16 @@ void gameLose(struct Game *game, KeyState keys[KEY_COUNT]);
 
 // TODO: move this
 void sleepMs(long ms) {
-    struct timespec ts;
+  struct timespec ts;
 
-    ts.tv_sec = ms / 1000;
-    ts.tv_nsec = (ms % 1000) * 1000000L;
+  ts.tv_sec = ms / 1000;
+  ts.tv_nsec = (ms % 1000) * 1000000L;
 
-    while (nanosleep(&ts, &ts) == -1) {
-        // if interrupted by signal, nanosleep returns remaining time in ts
-        continue;
+  while (nanosleep(&ts, &ts) == -1) {
+    if (shouldQuit()) {
+      break;
     }
+  }
 }
 
 int main() {
@@ -133,10 +134,44 @@ int main() {
 
   enableSpecialTerminal();
 
-  while (game->isRunning) {
-    printf("\033[H\033[J"); // clear screen
+  double currentTime = timeNow();
+  double accumulator = 0.0;
+  const double dt = game->secondsPerFrame;
+
+  while (game->isRunning && !shouldQuit()) {
+    double frameStart = timeNow();
+    double frameTime = frameStart - currentTime;
+    currentTime = frameStart;
+    
+    if (frameTime > 0.25) {
+      frameTime = 0.25;
+    }
+
     beginInputFrame(keyPair.keys);
     updateInput(keyPair.keys, keyPair.lastSeen);
+
+    accumulator += frameTime;
+    int updateCount = 0;
+    const int maxupdates = 5;
+    /*
+     * while (accumulator >= dt && updateCount < maxUpdates) {
+     *   DO UPDATES HERE
+     *   accumulator -= dt;
+     *   updateCount++;
+     * }
+     *
+     * if (updateCount == maxUpdates ) {
+     *  accumulator = 0;
+     * }
+     * 
+     * RENDER HERE
+     *
+     * double elapsed = timeNow() - frameStart;
+     * 
+     * if (elapsed < dt) {
+     *   sleepMs( (dt - elapsed) * 1000)
+     * }
+     */
 
     switch (game->gameState){
       case MAIN_MENU:
@@ -181,6 +216,7 @@ void gameMenu(struct Game *game, KeyState keys[KEY_COUNT]){
   }
 }
 
+// TODO: need to separate update and render logics, we should be updateing more then once per frame
 void gamePlaying(struct Game *game, KeyState keys[KEY_COUNT], float *bulletLimiter){
   if (keys[KEY_Q].pressed) {
     game->isRunning = 0;
@@ -210,6 +246,7 @@ void gamePlaying(struct Game *game, KeyState keys[KEY_COUNT], float *bulletLimit
   updateUnitsPositions(game);
   checkBuletPositions(game);
   clampObjectsToBorders(game);
+  printf("\033[H\033[J"); // clear screen
   renderMap(game);
   printf("%f\n", *bulletLimiter);
   printf("%i\n", game->bullets->aliveCount);
