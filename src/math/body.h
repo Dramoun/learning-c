@@ -5,9 +5,10 @@
 #include "vec2.h"
 
 typedef struct {
-    Vec2 pos;
-    Vec2 vel;
-    Vec2 acc;
+  Vec2 pos;
+  Vec2 vel;
+  Vec2 acc;
+  f32 hitbox;
 } Body;
 
 Body bodyCreate(Vec2 pos, Vec2 vel);

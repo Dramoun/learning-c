@@ -1,32 +1,34 @@
+#ifndef UNITS_H
+#define UNITS_H
+
+#define MAX_BULLETS 100
+
 #include <stdbool.h>
+#include "../math/body.h"
+#include "math/vec2.h"
+#include "types.h"
 
-struct Unit {
+typedef struct {
   char symbol;
-  float x;  // Col
-  float y;  // Row
-  float vx; // Col velocity
-  float vy; // Row velocity
-  int hp;
-};
+  Body body;
+  Vec2 defaultAcc;
+  u16 hp;
+  bool alive;
+} Unit;
 
-struct Bullet {
-  char symbol;
-  float x;
-  float y;
-  float vx;
-  float vy;
-  int alive;
-};
+typedef Unit Bullet;
+typedef Unit Enemy;
 
-struct Bullets {
-  struct Bullet *units;
-  int aliveCount;
-  int deadCount;
-};
+typedef struct {
+  Bullet *units;
+  size_t aliveCount;
+  size_t deadCount;
+} Bullets;
 
-// Exponentially chunked
-struct Enemies {
-  struct Unit *units;
-  int unitCount;
-  int capacity;
-};
+typedef struct {
+  Enemy *units;
+  size_t unitCount;
+  size_t capacity;
+} Enemies;
+
+#endif

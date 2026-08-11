@@ -23,6 +23,13 @@ Vec2 vec2Scale(Vec2 v, f32 scalar) {
     };
 }
 
+Vec2 vec2Devide(Vec2 v, f32 devider) {
+    return (Vec2){
+        v.x / devider,
+        v.y / devider
+    };
+}
+
 f32 vec2Length(Vec2 v) {
     return sqrtf(v.x * v.x + v.y * v.y);
 }
