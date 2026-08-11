@@ -19,12 +19,14 @@ void bodyApplyForce(Body *b, Vec2 force)
 
 void bodyUpdate(Body *b, f32 dt)
 {
+  bodyUpdateWithAcceleration(b, dt, (Vec2) {0,0});
+}
+
+void bodyUpdateWithAcceleration(Body *b, f32 dt, Vec2 newAcc)
+{
     // integrate velocity
     b->vel = vec2Add(b->vel, vec2Scale(b->acc, dt));
-
     // integrate position
     b->pos = vec2Add(b->pos, vec2Scale(b->vel, dt));
-
-    // reset acceleration each frame
-    b->acc = (Vec2){0, 0};
+    b->acc = newAcc;
 }

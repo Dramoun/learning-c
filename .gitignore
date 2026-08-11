@@ -2,6 +2,8 @@
 # Build output
 # =========================
 build/
+build-release/
+CMakeUserPresets.json
 *.o
 *.obj
 *.so
