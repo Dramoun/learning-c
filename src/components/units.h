@@ -1,12 +1,11 @@
 #ifndef UNITS_H
 #define UNITS_H
 
-#define MAX_BULLETS 100
-
-#include <stdbool.h>
-#include "../math/body.h"
+#include "math/body.h"
 #include "math/vec2.h"
 #include "types.h"
+
+#define MAX_BULLETS 100
 
 typedef struct {
   char symbol;

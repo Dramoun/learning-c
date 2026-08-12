@@ -1,7 +1,6 @@
 #ifndef STRUCTURES_H
 #define STRUCTURES_H
 
-#include <stdbool.h>
 #include "types.h"
 #include "units.h"
 
