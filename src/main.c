@@ -73,22 +73,22 @@ struct Game {
 
 struct Map *createMap(int minX, int minY, int maxX, int maxY);
 struct Unit *createPlayer(char symbol, float x, float y, int hp);
-struct Enemies *createEnemies(int initialCapacity);
+struct Enemies *createEnemies(int initialCapacity); // added
 struct Game *createGame();
-struct Bullets *createBulletSpace();
+struct Bullets *createBulletSpace(); // added
 void destroyGame(struct Game *game);
 
 void updateUnitsPositions(struct Game *game);
-void renderMap(struct Game *game);
+void renderMap(struct Game *game); // added
 
-void addEnemy(struct Enemies *enemies, struct Unit enemy);
-void removeEnemy(struct Enemies *enemies, int enemyIndex);
+void addEnemy(struct Enemies *enemies, struct Unit enemy); // added
+void removeEnemy(struct Enemies *enemies, int enemyIndex); // added
 
-void addBullet(struct Game *game, int x, int y, int vx, int vy);
+void addBullet(struct Game *game, int x, int y, int vx, int vy); // added
 
 void checkBuletPositions(struct Game *game);
 void bulletBorderCollision(struct Game *game, struct Bullet *bullet);
-int bulletEnemyCollision(struct Bullet *bullet, struct Unit *enemy);
+int bulletEnemyCollision(struct Bullet *bullet, struct Unit *enemy); // added
 
 void clampObjectsToBorders(struct Game *game);
 void clampUnit(struct Game *game, struct Unit *unit);

@@ -8,6 +8,7 @@ Body bodyCreate(Vec2 pos, Vec2 vel)
   b.pos = pos;
   b.vel = vel;
   b.acc = (Vec2){0, 0};
+  b.hitbox = 0.5f;
   return b;
 }
 

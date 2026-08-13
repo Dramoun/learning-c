@@ -1,5 +1,5 @@
-#include "units.h"
-#include "components/structures.h"
+#include "components/units.h"
+#include "math/body.h"
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,7 +7,7 @@
 // TODO: prints should be logging into a logger file
 void addEnemy(Enemies *enemies, Enemy enemy) {
   if (enemies->capacity <= enemies->unitCount) {
-    int newCapacity = enemies->capacity * 2;
+    size_t newCapacity = enemies->capacity * 2;
 
     Enemy *temp =
         realloc(enemies->units, sizeof(Enemy) * newCapacity);
@@ -40,13 +40,13 @@ void removeEnemy(Enemies *enemies, size_t enemyIndex) {
   enemies->unitCount--;
 };
 
-void addBullet(Game *game, Vec2 pos, Vec2 vel, Vec2 acc) {
-  if (game->bullets->aliveCount == MAX_BULLETS){
+void addBullet(Bullets *bullets, Vec2 pos, Vec2 vel, Vec2 acc) {
+  if (bullets->aliveCount == MAX_BULLETS){
     return;
   }
   
   for (int i = 0; i < MAX_BULLETS; i++){
-    Bullet *bullet = &game->bullets->units[i];
+    Bullet *bullet = &bullets->units[i];
 
     if (bullet->alive == false){
       bullet->alive = true;
@@ -57,22 +57,14 @@ void addBullet(Game *game, Vec2 pos, Vec2 vel, Vec2 acc) {
         .hitbox=0.5
       };
 
-      game->bullets->aliveCount++;
+      bullets->aliveCount++;
       return;
     }
   }
-
 }
 
 bool bulletEnemyCollision(Bullet *bullet, Enemy *enemy){
-  
-  if (bullet->body.pos.x == enemy->body.pos.x && 
-      bullet->body.pos.y == enemy->body.pos.y){
-    bullet->alive = false;
-    return true;
-  }
-
-  return false;
+  return twoBodyCollisionCheck(&bullet->body, &enemy->body);  
 }
 
 Enemies *createEnemies(size_t initialCapacity) {
@@ -110,14 +102,34 @@ Bullets *createBulletSpace(){
   }
   
   for (int i = 0; i < MAX_BULLETS; i++){
+    bulletSpace[i].body = bodyCreate((Vec2){4,9}, (Vec2){0,0});
+    bulletSpace[i].hp = 0;
+    bulletSpace[i].defaultAcc = (Vec2) {1,0};
     bulletSpace[i].alive = 0;
     bulletSpace[i].symbol = '|';
   }
 
   bullets->units = bulletSpace;
   bullets->aliveCount = 0;
-  bullets->deadCount = 0;
+  bullets->deadCount = MAX_BULLETS;
 
   return bullets;
 }
 
+Player *createPlayer() {
+  Player *player = malloc(sizeof(Player));
+
+  if (!player) {
+    return NULL;
+  }
+
+  player->symbol = 'P';
+  player->body = bodyCreate((Vec2){4,9}, (Vec2){0,0});
+
+  player->defaultAcc.x = 0;
+  player->defaultAcc.y = 0;
+  
+  player->hp = 10;
+
+  return player;
+}

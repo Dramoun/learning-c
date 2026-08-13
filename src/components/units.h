@@ -17,6 +17,7 @@ typedef struct {
 
 typedef Unit Bullet;
 typedef Unit Enemy;
+typedef Unit Player;
 
 typedef struct {
   Bullet *units;
@@ -29,5 +30,13 @@ typedef struct {
   size_t unitCount;
   size_t capacity;
 } Enemies;
+
+void addEnemy(Enemies *enemies, Enemy enemy); 
+void removeEnemy(Enemies *enemies, size_t enemyIndex);
+void addBullet(Bullets *bullets, Vec2 pos, Vec2 vel, Vec2 acc);
+bool bulletEnemyCollision(Bullet *bullet, Enemy *enemy);
+Enemies *createEnemies(size_t initialCapacity);
+Bullets *createBulletSpace();
+Player *createPlayer();
 
 #endif

@@ -3,6 +3,7 @@
 
 #include "types.h"
 #include "units.h"
+#include <stddef.h>
 
 
 typedef enum {
@@ -14,21 +15,31 @@ typedef enum {
 } GameState;
 
 typedef struct {
-  u8 maxX;
-  u8 maxY;
-  u8 minX;
-  u8 minY;
-} MapSize;
+  Vec2 *vertices;
+  size_t verticesCount;
+} RoomShape;
 
 typedef struct {
-  MapSize *map;
-  Unit *player;
   Enemies *enemies;
+  RoomShape shape;
+  Vec2 playerEntryPos;
+  u8 id;
+} Room;
+
+typedef struct {
+  Room *room;
+  Unit *player;
   Bullets *bullets;
   GameState gameState;
   f32 secondsPerFrame;
   u8 currentLevel;
   bool isRunning;
 } Game;
+
+Game *createGame();
+void destroyGame(Game *game);
+
+Room *roomOne();
+void destroyRoom(Room *room);
 
 #endif
