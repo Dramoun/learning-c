@@ -108,6 +108,27 @@ Room *roomOne() {
   return room;
 }
 
+void destroyGame(Game *game) {
+  if (!game) {
+    return;
+  }
+
+  destroyRoom(game->room);
+
+  // TODO: custom destructor
+  if (game->player) {
+    free(game->player);
+  }
+
+  // TODO: custom destructor
+  if (game->bullets){
+    free(game->bullets->units);
+    free(game->bullets);
+  }
+
+  free(game);
+}
+
 Game *createGame() {
   Game *game = malloc(sizeof(Game));
 

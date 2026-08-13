@@ -20,14 +20,14 @@ enum GameState {
   PAUSED,
   GAME_WIN,
   GAME_LOSE
-};
+}; // MOVED
 
 struct Map {
   int maxX;
   int maxY;
   int minX;
   int minY;
-};
+}; // MOVED
 
 struct Unit {
   char symbol;
@@ -36,7 +36,7 @@ struct Unit {
   float vx; // Col velocity
   float vy; // Row velocity
   int hp;
-};
+}; // MOVED
 
 struct Bullet {
   char symbol;
@@ -45,20 +45,20 @@ struct Bullet {
   float vx;
   float vy;
   int alive;
-};
+}; // MOVED
 
 struct Bullets {
   struct Bullet *units;
   int aliveCount;
   int deadCount;
-};
+}; // MOVED
 
 // Exponentially chunked
 struct Enemies {
   struct Unit *units;
   int unitCount;
   int capacity;
-};
+}; // MOVED
 
 struct Game {
   struct Map *map;
@@ -69,17 +69,17 @@ struct Game {
   float secondsPerFrame;
   int currentLevel;
   int isRunning;
-};
+}; // MOVED
 
-struct Map *createMap(int minX, int minY, int maxX, int maxY);
-struct Unit *createPlayer(char symbol, float x, float y, int hp);
+struct Map *createMap(int minX, int minY, int maxX, int maxY); // MOVED
+struct Unit *createPlayer(char symbol, float x, float y, int hp); // MOVED
 struct Enemies *createEnemies(int initialCapacity); // added
-struct Game *createGame();
+struct Game *createGame(); // MOVED
 struct Bullets *createBulletSpace(); // added
-void destroyGame(struct Game *game);
+void destroyGame(struct Game *game); // MOVED
 
 void updateUnitsPositions(struct Game *game);
-void renderMap(struct Game *game); // added
+void renderMap(struct Game *game);
 
 void addEnemy(struct Enemies *enemies, struct Unit enemy); // added
 void removeEnemy(struct Enemies *enemies, int enemyIndex); // added
@@ -99,7 +99,7 @@ void gamePaused(struct Game *game, KeyState keys[KEY_COUNT]);
 void gameWin(struct Game *game, KeyState keys[KEY_COUNT]);
 void gameLose(struct Game *game, KeyState keys[KEY_COUNT]);
 
-// TODO: move this
+// moved
 void sleepMs(long ms) {
   struct timespec ts;
 
