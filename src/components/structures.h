@@ -1,6 +1,7 @@
 #ifndef STRUCTURES_H
 #define STRUCTURES_H
 
+#include "math/vec2.h"
 #include "types.h"
 #include "units.h"
 #include <stddef.h>
@@ -38,6 +39,7 @@ typedef struct {
 
 Game *createGame();
 void destroyGame(Game *game);
+bool isPointInsideRoom(RoomShape *roomShape, Vec2 p);
 
 Room *roomOne();
 void destroyRoom(Room *room);

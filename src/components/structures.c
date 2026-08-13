@@ -108,6 +108,32 @@ Room *roomOne() {
   return room;
 }
 
+bool isPointInsideRoom(RoomShape *roomShape, Vec2 p) {
+  bool inside = false;
+
+  Vec2 *vertices = roomShape->vertices;
+  size_t a = roomShape->verticesCount - 1;
+
+  for (size_t b = 0; b < roomShape->verticesCount; a = b++) {
+    f64 ax = vertices[a].x;
+    f64 ay = vertices[a].y;
+    f64 bx = vertices[b].x;
+    f64 by = vertices[b].y;
+
+    bool crosses = (ay > p.y) != (by > p.y);
+   
+    if (crosses) {
+      f64 ix = ax + ((p.y - ay) / (by - ay)) * (bx - ax);
+
+      if (ix >= p.x) {
+        inside = !inside;
+      }
+    }
+  }
+
+  return inside;
+}
+
 void destroyGame(Game *game) {
   if (!game) {
     return;
