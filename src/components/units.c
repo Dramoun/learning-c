@@ -40,7 +40,7 @@ void removeEnemy(Enemies *enemies, size_t enemyIndex) {
   enemies->unitCount--;
 };
 
-void addBullet(Bullets *bullets, Vec2 pos, Vec2 vel, Vec2 acc) {
+void addBullet(Bullets *bullets, Vec2 pos) {
   if (bullets->aliveCount == MAX_BULLETS){
     return;
   }
@@ -50,13 +50,8 @@ void addBullet(Bullets *bullets, Vec2 pos, Vec2 vel, Vec2 acc) {
 
     if (bullet->alive == false){
       bullet->alive = true;
-      bullet->body = (Body){ 
-        .pos=pos,
-        .vel=vel,
-        .acc=acc,
-        .hitbox=0.5
-      };
-
+      bullet->body.pos = pos;
+      bullet->body.vel = bullet->defaultAcc;
       bullets->aliveCount++;
       return;
     }
@@ -133,3 +128,21 @@ Player *createPlayer() {
 
   return player;
 }
+
+
+void playerMoveLeft(Player *player) {
+  bodyApplyForce(&player->body, (Vec2){-300.0f,0});
+}
+
+void playerMoveRight(Player *player) {
+  bodyApplyForce(&player->body, (Vec2){300.0f,0});
+}
+
+void playerMoveDown(Player *player) {
+  bodyApplyForce(&player->body, (Vec2){0,300.0f});
+}
+
+void playerMoveUp(Player *player) {
+  bodyApplyForce(&player->body, (Vec2){0,-300.0f});
+}
+

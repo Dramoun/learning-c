@@ -1,6 +1,7 @@
 #include "components/structures.h"
 #include "components/units.h"
 #include "math/body.h"
+#include <math.h>
 #include <stddef.h>
 #include <stdlib.h>
 
@@ -105,27 +106,78 @@ Room *roomOne() {
   });
   room->id = 1;
 
+  calculateRoomBounds(room);
   return room;
 }
 
-bool isPointInsideRoom(RoomShape *roomShape, Vec2 p) {
+void calculateRoomBounds(Room *room) {
+  if (!room || !room->shape.vertices || room->shape.verticesCount == 0) {
+    return;
+  }
+
+  Vec2 *vertices = room->shape.vertices;
+  size_t count = room->shape.verticesCount;
+
+  room->minPos = vertices[0];
+  room->maxPos = vertices[0];
+
+  for (size_t i = 1; i < count; i++) {
+    if (vertices[i].x < room->minPos.x) {
+      room->minPos.x = vertices[i].x;
+    }
+
+    if (vertices[i].y < room->minPos.y) {
+      room->minPos.y = vertices[i].y;
+    }
+
+    if (vertices[i].x > room->maxPos.x) {
+      room->maxPos.x = vertices[i].x;
+    }
+
+    if (vertices[i].y > room->maxPos.y) {
+      room->maxPos.y = vertices[i].y;
+    }
+  }
+}
+
+bool isPointInsideRoom(RoomShape *roomShape, Vec2 p, Vec2 offset) {
   bool inside = false;
 
   Vec2 *vertices = roomShape->vertices;
   size_t a = roomShape->verticesCount - 1;
 
   for (size_t b = 0; b < roomShape->verticesCount; a = b++) {
-    f64 ax = vertices[a].x;
-    f64 ay = vertices[a].y;
-    f64 bx = vertices[b].x;
-    f64 by = vertices[b].y;
+    f64 ax = vertices[a].x - offset.x;
+    f64 ay = vertices[a].y - offset.y;
+    f64 bx = vertices[b].x - offset.x;
+    f64 by = vertices[b].y - offset.y;
 
+    // Check if p lies on the edge A -> B.
+    f64 cross =
+      (p.x - ax) * (by - ay) -
+      (p.y - ay) * (bx - ax);
+
+    if (fabs(cross) < 1e-9) {
+      f64 minX = fmin(ax, bx);
+      f64 maxX = fmax(ax, bx);
+      f64 minY = fmin(ay, by);
+      f64 maxY = fmax(ay, by);
+
+      if (p.x >= minX && p.x <= maxX &&
+        p.y >= minY && p.y <= maxY) {
+        // True = on boundary is inside
+        // False = on boundary is outside
+        return false;
+      }
+    }
+
+    // Normal ray-casting.
     bool crosses = (ay > p.y) != (by > p.y);
-   
+
     if (crosses) {
       f64 ix = ax + ((p.y - ay) / (by - ay)) * (bx - ax);
 
-      if (ix >= p.x) {
+      if (ix > p.x) {
         inside = !inside;
       }
     }

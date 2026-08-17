@@ -33,10 +33,16 @@ typedef struct {
 
 void addEnemy(Enemies *enemies, Enemy enemy); 
 void removeEnemy(Enemies *enemies, size_t enemyIndex);
-void addBullet(Bullets *bullets, Vec2 pos, Vec2 vel, Vec2 acc);
+void addBullet(Bullets *bullets, Vec2 pos);
 bool bulletEnemyCollision(Bullet *bullet, Enemy *enemy);
+
 Enemies *createEnemies(size_t initialCapacity);
 Bullets *createBulletSpace();
+
 Player *createPlayer();
+void playerMoveLeft(Player *player);
+void playerMoveRight(Player *player);
+void playerMoveDown(Player *player);
+void playerMoveUp(Player *player);
 
 #endif

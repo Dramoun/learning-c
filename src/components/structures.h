@@ -24,6 +24,8 @@ typedef struct {
   Enemies *enemies;
   RoomShape shape;
   Vec2 playerEntryPos;
+  Vec2 minPos;
+  Vec2 maxPos;
   u8 id;
 } Room;
 
@@ -39,8 +41,9 @@ typedef struct {
 
 Game *createGame();
 void destroyGame(Game *game);
-bool isPointInsideRoom(RoomShape *roomShape, Vec2 p);
+bool isPointInsideRoom(RoomShape *roomShape, Vec2 p, Vec2 offset);
 
+void calculateRoomBounds(Room *room);
 Room *roomOne();
 void destroyRoom(Room *room);
 
